@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { CheckCircle, AlertTriangle } from "lucide-react";
 import { routes } from "@/config/routes";
-import { getLeaseCaseById } from "@/server/repos/lease-cases.repo";
+import { getLeaseCaseForRequest } from "@/server/lease-case-view";
 import { getSettlementForLease } from "@/server/repos/settlements.repo";
 import { listDeductionProposalsForLease } from "@/server/repos/deduction-proposals.repo";
 import type { Settlement } from "@/domain";
@@ -16,7 +16,7 @@ export default async function SettlementPage({
   params: Promise<{ caseId: string }>;
 }) {
   const { caseId } = await params;
-  const c = await getLeaseCaseById(caseId);
+  const c = await getLeaseCaseForRequest(caseId);
   if (!c) notFound();
 
   const existing = await getSettlementForLease(caseId);

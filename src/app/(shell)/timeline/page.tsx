@@ -1,9 +1,18 @@
-import { listLeaseCases } from "@/server/repos/lease-cases.repo";
+import { getSessionUser } from "@/server/auth/session";
+import { isDatabaseConfigured } from "@/server/db/client";
+import {
+  listLeaseCases,
+  listLeaseCasesForUser,
+} from "@/server/repos/lease-cases.repo";
 import { CaseHubLinkCard } from "@/components/case/case-hub-link-card";
 import { PageHeader } from "@/components/layout/page-header";
 
 export default async function TimelineHubPage() {
-  const cases = await listLeaseCases();
+  const user = await getSessionUser();
+  const cases =
+    isDatabaseConfigured() && user
+      ? await listLeaseCasesForUser(user.id)
+      : await listLeaseCases();
 
   return (
     <div className="space-y-10">

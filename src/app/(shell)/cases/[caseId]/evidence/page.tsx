@@ -1,5 +1,11 @@
 import { notFound } from "next/navigation";
-import { getLeaseCaseById, listLeaseCases } from "@/server/repos/lease-cases.repo";
+import { getSessionUser } from "@/server/auth/session";
+import { getLeaseCaseForRequest } from "@/server/lease-case-view";
+import { isDatabaseConfigured } from "@/server/db/client";
+import {
+  listLeaseCases,
+  listLeaseCasesForUser,
+} from "@/server/repos/lease-cases.repo";
 import { countDisputedEvidenceGlobally, listEvidenceForCase } from "@/server/repos/evidence.repo";
 import { EvidenceVaultTrustTimeline } from "@/components/case/evidence-vault-trust-timeline";
 import { EmptyState } from "@/components/wireframe/empty-state";
@@ -11,11 +17,15 @@ export default async function EvidenceLibraryPage({
   params: Promise<{ caseId: string }>;
 }) {
   const { caseId } = await params;
-  const c = await getLeaseCaseById(caseId);
+  const c = await getLeaseCaseForRequest(caseId);
   if (!c) notFound();
 
   const items = await listEvidenceForCase(caseId);
-  const allCases = await listLeaseCases();
+  const user = await getSessionUser();
+  const allCases =
+    isDatabaseConfigured() && user
+      ? await listLeaseCasesForUser(user.id)
+      : await listLeaseCases();
   const portfolioTotalDepositsCents = allCases.reduce(
     (s, x) => s + x.depositCents,
     0,

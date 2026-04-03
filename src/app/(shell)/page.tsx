@@ -1,9 +1,12 @@
 import Link from "next/link";
-import { cookies } from "next/headers";
 import { BarChart3, FileText, AlertTriangle } from "lucide-react";
 import { routes } from "@/config/routes";
-import { createClient } from "@/utils/supabase/server";
-import { listLeaseCases } from "@/server/repos/lease-cases.repo";
+import { getSessionUser } from "@/server/auth/session";
+import { isDatabaseConfigured } from "@/server/db/client";
+import {
+  listLeaseCases,
+  listLeaseCasesForUser,
+} from "@/server/repos/lease-cases.repo";
 import { formatMoney } from "@/lib/format-money";
 import { StatusPill } from "@/components/ui/status-pill";
 import { WireSection } from "@/components/wireframe/wire-section";
@@ -11,11 +14,11 @@ import { EmptyState } from "@/components/wireframe/empty-state";
 import { cn } from "@/lib/cn";
 
 export default async function DashboardPage() {
-  const cookieStore = await cookies();
-  const supabase = createClient(cookieStore);
-  await supabase.auth.getUser();
-
-  const cases = await listLeaseCases();
+  const user = await getSessionUser();
+  const cases =
+    isDatabaseConfigured() && user
+      ? await listLeaseCasesForUser(user.id)
+      : await listLeaseCases();
   const hasCases = cases.length > 0;
 
   if (!hasCases) {

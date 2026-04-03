@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { getLeaseCaseById } from "@/server/repos/lease-cases.repo";
+import { getLeaseCaseForRequest } from "@/server/lease-case-view";
 import { listEvidenceForCase } from "@/server/repos/evidence.repo";
 import { Button } from "@/components/ui/button";
 import { WireSection } from "@/components/wireframe/wire-section";
@@ -10,7 +10,7 @@ export default async function EvidenceReviewPage({
   params: Promise<{ caseId: string }>;
 }) {
   const { caseId } = await params;
-  const c = await getLeaseCaseById(caseId);
+  const c = await getLeaseCaseForRequest(caseId);
   if (!c) notFound();
 
   const evidenceRows = await listEvidenceForCase(caseId);

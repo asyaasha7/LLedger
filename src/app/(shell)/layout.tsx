@@ -1,11 +1,22 @@
+import { redirect } from "next/navigation";
 import { AppSidebar } from "@/components/shell/app-sidebar";
 import { TopContextBar } from "@/components/shell/top-context-bar";
+import { getSessionUser } from "@/server/auth/session";
+import { isDatabaseConfigured } from "@/server/db/client";
+import { routes } from "@/config/routes";
 
-export default function ShellLayout({
+export default async function ShellLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  if (isDatabaseConfigured()) {
+    const user = await getSessionUser();
+    if (!user) {
+      redirect(routes.login);
+    }
+  }
+
   return (
     <div className="relative min-h-screen bg-surface text-ink">
       <AppSidebar />

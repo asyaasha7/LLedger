@@ -2,6 +2,8 @@
  * Central route builders — avoids duplicated template strings and typos.
  */
 export const routes = {
+  login: "/login",
+  authCallback: "/auth/callback",
   dashboard: "/",
   casesList: "/cases",
   newCase: "/cases/new",

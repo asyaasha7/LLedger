@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { routes } from "@/config/routes";
-import { getLeaseCaseById } from "@/server/repos/lease-cases.repo";
+import { getLeaseCaseForRequest } from "@/server/lease-case-view";
 import { listUiTimelineEventsForLease } from "@/server/repos/timeline.repo";
 import { CaseTimelineList } from "@/components/case/case-timeline-list";
 import { EmptyState } from "@/components/wireframe/empty-state";
@@ -11,7 +11,7 @@ export default async function TimelinePage({
   params: Promise<{ caseId: string }>;
 }) {
   const { caseId } = await params;
-  const c = await getLeaseCaseById(caseId);
+  const c = await getLeaseCaseForRequest(caseId);
   if (!c) notFound();
 
   const events = await listUiTimelineEventsForLease(caseId);

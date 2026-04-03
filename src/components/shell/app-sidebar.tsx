@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { SIDEBAR_FOOTER_ACTIONS, SIDEBAR_NAV } from "@/config/sidebar-nav";
 import { routes } from "@/config/routes";
 import { cn } from "@/lib/cn";
+import { SignOutButton } from "@/components/shell/sign-out-button";
 
 export function AppSidebar() {
   const pathname = usePathname();
@@ -55,6 +56,7 @@ export function AppSidebar() {
           New Entry
         </Link>
         <div className="space-y-1">
+          <SignOutButton />
           {SIDEBAR_FOOTER_ACTIONS.map(({ label, icon: Icon }) => (
             <button
               key={label}

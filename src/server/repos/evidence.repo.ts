@@ -11,6 +11,8 @@ import {
   listEvidenceForCase as listEvidenceForCaseMock,
 } from "@/data/mock/evidence";
 import { listCases as listCasesMock } from "@/data/mock/cases";
+import type postgres from "postgres";
+import { appendCaseEvent } from "@/server/repos/case-events.repo";
 import { getDb } from "@/server/db/client";
 
 type EvidenceRow = {
@@ -79,6 +81,73 @@ export async function listEvidenceForCase(
     ORDER BY created_at ASC
   `;
   return rows.map(mapEvidenceRow);
+}
+
+export async function insertEvidenceItem(input: {
+  leaseId: string;
+  evidenceId: string;
+  submittedByUserId: string;
+  submitterRole: UserRole;
+  evidenceType: EvidenceType;
+  category: EvidenceCategory;
+  title: string;
+  description: string;
+  roomTag?: string | null;
+  fileHash: string;
+  encryptedStorageRef: string;
+}): Promise<void> {
+  const db = getDb();
+  if (!db) throw new Error("DATABASE_URL is not configured");
+
+  await db.begin(async (t) => {
+    const sql = t as unknown as postgres.Sql;
+    await sql`
+      INSERT INTO evidence_items (
+        evidence_id,
+        lease_id,
+        submitted_by_user_id,
+        submitter_role,
+        evidence_type,
+        category,
+        title,
+        description,
+        room_tag,
+        file_hash,
+        encrypted_storage_ref,
+        review_status
+      )
+      VALUES (
+        ${input.evidenceId},
+        ${input.leaseId},
+        ${input.submittedByUserId},
+        ${input.submitterRole},
+        ${input.evidenceType},
+        ${input.category},
+        ${input.title},
+        ${input.description},
+        ${input.roomTag ?? null},
+        ${input.fileHash},
+        ${input.encryptedStorageRef},
+        'SUBMITTED'
+      )
+    `;
+
+    await appendCaseEvent(
+      {
+        leaseId: input.leaseId,
+        eventType: "EVIDENCE_SUBMITTED",
+        actorRole: input.submitterRole,
+        payload: {
+          evidenceId: input.evidenceId,
+          fileHash: input.fileHash,
+          evidenceType: input.evidenceType,
+          storageKey: input.encryptedStorageRef,
+          title: input.title,
+        },
+      },
+      sql,
+    );
+  });
 }
 
 export async function countDisputedEvidenceGlobally(): Promise<number> {

@@ -3,7 +3,11 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { TrendingUp, User } from "lucide-react";
 import { routes } from "@/config/routes";
-import { getLeaseCaseById } from "@/server/repos/lease-cases.repo";
+import { InviteTenantForm } from "@/components/case/invite-tenant-form";
+import { getSessionUser } from "@/server/auth/session";
+import { isDatabaseConfigured } from "@/server/db/client";
+import { getLeaseCaseForRequest } from "@/server/lease-case-view";
+import { getMembershipRole } from "@/server/repos/case-memberships.repo";
 import { getSettlementForLease } from "@/server/repos/settlements.repo";
 import { CASE_REGISTRY_HERO_IMAGE } from "@/lib/design-assets";
 import { getCasePrimaryAction } from "@/lib/case-actions";
@@ -19,8 +23,18 @@ export default async function CaseOverviewPage({
   params: Promise<{ caseId: string }>;
 }) {
   const { caseId } = await params;
-  const c = await getLeaseCaseById(caseId);
+  const c = await getLeaseCaseForRequest(caseId);
   if (!c) notFound();
+
+  const user = await getSessionUser();
+  const membershipRole =
+    isDatabaseConfigured() && user
+      ? await getMembershipRole(caseId, user.id)
+      : null;
+  const showTenantInvite =
+    Boolean(isDatabaseConfigured()) &&
+    membershipRole === "landlord" &&
+    c.tenant.userId === "pending";
 
   const primaryCta = getCasePrimaryAction(c);
   const settlementPreview = await getSettlementForLease(caseId);
@@ -168,6 +182,24 @@ export default async function CaseOverviewPage({
           </div>
         </div>
       </section>
+
+      {showTenantInvite ? (
+        <section className="border border-accent-ledger/25 bg-surface-card p-8 sm:p-10">
+          <p className="font-headline text-[10px] font-bold uppercase tracking-[0.2em] text-accent-ledger">
+            Tenant access
+          </p>
+          <h2 className="mt-2 font-headline text-xl font-black uppercase tracking-tighter text-ink">
+            Invite tenant to this case
+          </h2>
+          <p className="mt-2 max-w-xl text-sm text-ink-secondary">
+            We&apos;ll email a one-time magic link. After they sign in, they are
+            attached to this lease with tenant permissions only.
+          </p>
+          <div className="mt-8 max-w-md">
+            <InviteTenantForm leaseId={c.leaseId} />
+          </div>
+        </section>
+      ) : null}
 
       <section className="border border-outline-variant/15 bg-surface p-8 sm:p-10">
         <p className="font-headline text-[10px] font-bold uppercase tracking-[0.2em] text-ink-muted">

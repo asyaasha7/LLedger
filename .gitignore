@@ -18,6 +18,9 @@
 # production
 /build
 
+# local encrypted evidence fallback (no Supabase Storage)
+/data/
+
 # misc
 .DS_Store
 *.pem

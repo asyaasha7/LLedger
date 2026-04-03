@@ -1,11 +1,20 @@
 import Link from "next/link";
 import { routes } from "@/config/routes";
-import { listLeaseCases } from "@/server/repos/lease-cases.repo";
+import { getSessionUser } from "@/server/auth/session";
+import { isDatabaseConfigured } from "@/server/db/client";
+import {
+  listLeaseCases,
+  listLeaseCasesForUser,
+} from "@/server/repos/lease-cases.repo";
 import { formatMoney } from "@/lib/format-money";
 import { StatusPill } from "@/components/ui/status-pill";
 
 export default async function CasesPage() {
-  const cases = await listLeaseCases();
+  const user = await getSessionUser();
+  const cases =
+    isDatabaseConfigured() && user
+      ? await listLeaseCasesForUser(user.id)
+      : await listLeaseCases();
 
   return (
     <div className="space-y-10">
