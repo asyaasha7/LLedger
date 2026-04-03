@@ -1,0 +1,40 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply overflow-x-hidden;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  .text-display-lg {
+    font-family: var(--font-space-grotesk), ui-sans-serif, system-ui, sans-serif;
+    font-size: clamp(3rem, 8vw, 8rem);
+    line-height: 0.9;
+    letter-spacing: -0.05em;
+    font-weight: 900;
+  }
+
+  .text-headline-lg {
+    font-family: var(--font-space-grotesk), ui-sans-serif, system-ui, sans-serif;
+    font-size: clamp(2rem, 4vw, 3.5rem);
+    line-height: 1.1;
+    letter-spacing: -0.03em;
+    font-weight: 700;
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
