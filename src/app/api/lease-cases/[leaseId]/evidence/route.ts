@@ -6,6 +6,7 @@ import { envelopeEncrypt } from "@/server/crypto/envelope-encrypt";
 import { getSessionUser } from "@/server/auth/session";
 import { hasCaseAccess, getMembershipRole } from "@/server/repos/case-memberships.repo";
 import { insertEvidenceItem } from "@/server/repos/evidence.repo";
+import { publishCaseEventToHedera } from "@/server/services/publish-case-event-hedera";
 import { isDatabaseConfigured } from "@/server/db/client";
 import { createServiceRoleClient } from "@/utils/supabase/service";
 import type { EvidenceCategory, EvidenceType } from "@/domain";
@@ -136,8 +137,9 @@ export async function POST(
     encryptedStorageRef = `local:${leaseId}/${evidenceId}.enc`;
   }
 
+  let caseEventId = "";
   try {
-    await insertEvidenceItem({
+    const inserted = await insertEvidenceItem({
       leaseId,
       evidenceId,
       submittedByUserId: user.id,
@@ -150,10 +152,20 @@ export async function POST(
       fileHash,
       encryptedStorageRef,
     });
+    caseEventId = inserted.caseEventId;
   } catch (e) {
     console.error(e);
     return NextResponse.json({ error: "Database write failed" }, { status: 500 });
   }
 
-  return NextResponse.json({ evidenceId, fileHash, encryptedStorageRef });
+  const hedera = await publishCaseEventToHedera(caseEventId);
+
+  return NextResponse.json({
+    evidenceId,
+    fileHash,
+    encryptedStorageRef,
+    hedera: hedera.ok
+      ? { published: !hedera.skipped }
+      : { error: hedera.reason },
+  });
 }

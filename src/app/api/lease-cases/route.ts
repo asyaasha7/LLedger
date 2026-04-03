@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSessionUser } from "@/server/auth/session";
-import { parseDepositDollarsToCents } from "@/lib/parse-deposit-cents";
+import { parseCreateLeaseBody } from "@/lib/create-lease-body";
 import { isDatabaseConfigured } from "@/server/db/client";
 import {
   createLeaseCaseWithMembership,
@@ -9,6 +9,7 @@ import {
 import {
   listLeaseCasesForUser,
 } from "@/server/repos/lease-cases.repo";
+import { bootstrapHederaForNewLeaseCase } from "@/server/services/bootstrap-hedera-new-case";
 
 export async function GET() {
   if (!isDatabaseConfigured()) {
@@ -55,54 +56,52 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const propertyRef = String(body.propertyRef ?? "").trim();
-  const landlordDisplayName = String(body.landlordDisplayName ?? "").trim();
-  const tenantDisplayName = String(body.tenantDisplayName ?? "").trim();
-  const tenantEmail = body.tenantEmail
-    ? String(body.tenantEmail).trim()
-    : null;
-  const leaseStart = String(body.leaseStart ?? "").trim();
-  const leaseEnd = String(body.leaseEnd ?? "").trim();
-  const notes = String(body.notes ?? "").trim();
-  const depositCents =
-    typeof body.depositCents === "number" && Number.isFinite(body.depositCents)
-      ? Math.round(body.depositCents)
-      : parseDepositDollarsToCents(String(body.depositDollars ?? ""));
-
-  if (!propertyRef || !landlordDisplayName || !tenantDisplayName) {
-    return NextResponse.json(
-      { error: "propertyRef, landlordDisplayName, and tenantDisplayName are required" },
-      { status: 400 },
-    );
+  const parsed = parseCreateLeaseBody(body);
+  if (!parsed.ok) {
+    return NextResponse.json({ error: parsed.error }, { status: parsed.status });
   }
-  if (depositCents === null || depositCents < 0) {
-    return NextResponse.json(
-      { error: "Valid depositDollars or depositCents is required" },
-      { status: 400 },
-    );
-  }
-  if (!leaseStart || !leaseEnd) {
-    return NextResponse.json(
-      { error: "leaseStart and leaseEnd are required (YYYY-MM-DD)" },
-      { status: 400 },
-    );
-  }
+  const d = parsed.data;
 
   try {
-    const { leaseId, leaseRef } = await createLeaseCaseWithMembership({
-      propertyRef,
+    const {
+      leaseId,
+      leaseRef,
+      leaseCreatedCaseEventId,
+      leaseCreatedPublicEventId,
+    } = await createLeaseCaseWithMembership({
+      propertyRef: d.propertyRef,
       landlordUserId: user.id,
-      landlordDisplayName,
+      landlordDisplayName: d.landlordDisplayName,
       landlordEmail: user.email ?? null,
-      tenantDisplayName,
-      tenantEmail,
-      depositCents,
-      leaseStart,
-      leaseEnd,
-      notes,
+      tenantDisplayName: d.tenantDisplayName,
+      tenantEmail: d.tenantEmail,
+      depositCents: d.depositCents,
+      leaseStart: d.leaseStart,
+      leaseEnd: d.leaseEnd,
+      notes: d.notes,
       idempotencyKey: idempotencyKey ?? null,
     });
-    return NextResponse.json({ leaseId, leaseRef }, { status: 201 });
+
+    const hedera = await bootstrapHederaForNewLeaseCase({
+      leaseId,
+      leaseCreatedCaseEventId,
+      publicEventId: leaseCreatedPublicEventId,
+    });
+
+    const hederaJson =
+      hedera.ok
+        ? {
+            topicId: hedera.topicId,
+            transactionId: hedera.transactionId,
+          }
+        : "skipped" in hedera && hedera.skipped
+          ? { skipped: true as const }
+          : { error: (hedera as { error: string }).error };
+
+    return NextResponse.json(
+      { leaseId, leaseRef, hedera: hederaJson },
+      { status: 201 },
+    );
   } catch (e) {
     const message = e instanceof Error ? e.message : "Create failed";
     if (message.includes("unique") || message.includes("duplicate")) {
