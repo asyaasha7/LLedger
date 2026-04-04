@@ -8,9 +8,9 @@ const BY_LEASE: Record<string, Settlement> = {
   "lease-001": {
     settlementId: "set-lease-001",
     leaseId: "lease-001",
-    depositAmountCents: 240_000,
-    deductionAmountCents: 40_000,
-    refundAmountCents: 200_000,
+    depositAmountCents: 320_000,
+    deductionAmountCents: 89_250,
+    refundAmountCents: 230_750,
     status: "PROPOSED",
     approvedByTenant: false,
     approvedByLandlord: true,

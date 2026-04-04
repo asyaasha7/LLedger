@@ -1,6 +1,6 @@
 import "server-only";
 
-import { createCipheriv, randomBytes } from "crypto";
+import { createCipheriv, createDecipheriv, randomBytes } from "crypto";
 
 function getKey(): Buffer {
   const raw = process.env.EVIDENCE_ENCRYPTION_KEY?.trim();
@@ -24,4 +24,18 @@ export function envelopeEncrypt(plaintext: Buffer): Buffer {
   const enc = Buffer.concat([cipher.update(plaintext), cipher.final()]);
   const tag = cipher.getAuthTag();
   return Buffer.concat([iv, tag, enc]);
+}
+
+/** Inverse of {@link envelopeEncrypt}: expects iv (12) + auth tag (16) + ciphertext. */
+export function envelopeDecrypt(ciphertext: Buffer): Buffer {
+  const key = getKey();
+  if (ciphertext.length < 12 + 16) {
+    throw new Error("Ciphertext too short for AES-256-GCM envelope.");
+  }
+  const iv = ciphertext.subarray(0, 12);
+  const tag = ciphertext.subarray(12, 28);
+  const enc = ciphertext.subarray(28);
+  const decipher = createDecipheriv("aes-256-gcm", key, iv);
+  decipher.setAuthTag(tag);
+  return Buffer.concat([decipher.update(enc), decipher.final()]);
 }

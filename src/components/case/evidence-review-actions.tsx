@@ -10,11 +10,24 @@ type Props = {
   leaseId: string;
   items: EvidenceItem[];
   canReview: boolean;
+  /** When set with {@link onSelectedIdChange}, selection is controlled by the parent (e.g. preview pane). */
+  selectedId?: string;
+  onSelectedIdChange?: (evidenceId: string) => void;
 };
 
-export function EvidenceReviewActions({ leaseId, items, canReview }: Props) {
+export function EvidenceReviewActions({
+  leaseId,
+  items,
+  canReview,
+  selectedId: controlledSelectedId,
+  onSelectedIdChange,
+}: Props) {
   const router = useRouter();
-  const [selectedId, setSelectedId] = useState(items[0]?.evidenceId ?? "");
+  const [uncontrolledId, setUncontrolledId] = useState(
+    items[0]?.evidenceId ?? "",
+  );
+  const selectedId = controlledSelectedId ?? uncontrolledId;
+  const setSelectedId = onSelectedIdChange ?? setUncontrolledId;
   const [note, setNote] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState<"acknowledge" | "dispute" | null>(

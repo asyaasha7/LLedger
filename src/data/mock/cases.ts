@@ -3,8 +3,8 @@ import type { LeaseCase } from "@/domain";
 const SEED: LeaseCase[] = [
   {
     leaseId: "lease-001",
-    propertyRef: "Unit 4B",
-    leaseRef: "Lease-001",
+    propertyRef: "1847 Market St · Unit 4B",
+    leaseRef: "LL-2024-4B-MKT",
     landlord: {
       userId: "user-landlord-demo",
       role: "landlord",
@@ -16,12 +16,13 @@ const SEED: LeaseCase[] = [
       displayName: "Jordan Lee",
       email: "jordan@example.com",
     },
-    depositCents: 240_000,
+    depositCents: 320_000,
     lease: { start: "2024-06-01", end: "2025-05-31" },
     status: "SETTLEMENT_PENDING",
     hederaTopicId: null,
     hederaRefundScheduleId: null,
-    nextAction: "Review settlement proposal",
+    nextAction:
+      "Tenant: review settlement and respond (approve or reject)",
   },
   {
     leaseId: "lease-002",

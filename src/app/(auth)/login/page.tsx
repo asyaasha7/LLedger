@@ -16,6 +16,15 @@ function urlErrorMessage(code: string | null): string | null {
   if (code === "config") {
     return "Auth is not configured (missing Supabase URL or key).";
   }
+  if (code === "invite_email_mismatch") {
+    return "The email on this sign-in does not match the invited address. Use the same email the landlord entered, or ask for a new invite to the correct address.";
+  }
+  if (code === "invite_expired") {
+    return "This invite link has expired. Ask the landlord to send a new tenant invite.";
+  }
+  if (code === "invite_invalid_or_used") {
+    return "This invite link was already used or is invalid. Ask the landlord for a fresh invite.";
+  }
   if (code.startsWith("invite_")) {
     return "Could not attach this invite to your account. Ask the landlord for a new invite.";
   }

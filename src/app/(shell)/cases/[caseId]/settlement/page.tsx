@@ -23,6 +23,7 @@ import { Button } from "@/components/ui/button";
 import { SettlementActions } from "@/components/case/settlement-actions";
 import { formatMoney } from "@/lib/format-money";
 import { refundAmountCents } from "@/lib/money";
+import { resolvedDeductionAmountCents } from "@/lib/resolved-deduction-cents";
 
 export default async function SettlementPage({
   params,
@@ -34,13 +35,16 @@ export default async function SettlementPage({
   if (!c) notFound();
 
   const existing = await getSettlementForLease(caseId);
+  const proposals = await listDeductionProposalsForLease(caseId);
+  const activeDeduction = proposals.find((p) => p.status === "ACTIVE");
+
   const settlement: Settlement =
     existing ?? {
       settlementId: `set-${caseId}-draft`,
       leaseId: caseId,
       depositAmountCents: c.depositCents,
-      deductionAmountCents: 40_000,
-      refundAmountCents: refundAmountCents(c.depositCents, 40_000),
+      deductionAmountCents: 0,
+      refundAmountCents: refundAmountCents(c.depositCents, 0),
       status: "DRAFT",
       approvedByTenant: false,
       approvedByLandlord: false,
@@ -49,13 +53,13 @@ export default async function SettlementPage({
     };
 
   const overviewHref = routes.case(caseId).overview;
-  const proposals = await listDeductionProposalsForLease(caseId);
-  const activeDeduction = proposals.find((p) => p.status === "ACTIVE");
 
-  /** Lease row is source of truth for deposit; active proposal drives deduction preview. */
+  /** Lease deposit from case row; deduction from active proposal or persisted settlement only. */
   const deposit = c.depositCents;
-  const deduction =
-    activeDeduction?.amountCents ?? settlement.deductionAmountCents;
+  const deduction = resolvedDeductionAmountCents({
+    activeDeductionProposal: activeDeduction,
+    settlement,
+  });
   const refund = refundAmountCents(deposit, deduction);
   const settlementComplete =
     settlement.status === "EXECUTED" || c.status === "REFUND_COMPLETE";

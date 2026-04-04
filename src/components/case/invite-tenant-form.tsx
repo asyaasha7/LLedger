@@ -48,7 +48,10 @@ export function InviteTenantForm({ leaseId }: { leaseId: string }) {
         </label>
         <p className="mt-1 text-xs text-ink-muted">
           Sends a Supabase magic link that attaches them to this case after
-          sign-in.
+          sign-in. The tenant must use the <strong>same email</strong> you enter
+          here. In Supabase Auth, allow your app&apos;s{" "}
+          <code className="font-mono text-[10px]">/auth/callback</code> URL as a
+          redirect.
         </p>
         <input
           type="email"

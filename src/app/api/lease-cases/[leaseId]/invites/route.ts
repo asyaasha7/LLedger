@@ -4,13 +4,7 @@ import { isDatabaseConfigured } from "@/server/db/client";
 import { getMembershipRole } from "@/server/repos/case-memberships.repo";
 import { createLeaseInvite } from "@/server/repos/lease-invites.repo";
 import { createServiceRoleClient } from "@/utils/supabase/service";
-
-function siteOrigin(request: Request) {
-  return (
-    process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ??
-    new URL(request.url).origin
-  );
-}
+import { getSiteOrigin } from "@/lib/site-origin";
 
 export async function POST(
   request: Request,
@@ -52,7 +46,7 @@ export async function POST(
     createdByUserId: user.id,
   });
 
-  const origin = siteOrigin(request);
+  const origin = getSiteOrigin(request);
   const redirectTo = `${origin}/auth/callback?invite_token=${encodeURIComponent(token)}`;
 
   const admin = createServiceRoleClient();

@@ -9,10 +9,14 @@ import { isDatabaseConfigured } from "@/server/db/client";
 import { getLeaseCaseForRequest } from "@/server/lease-case-view";
 import { getMembershipRole } from "@/server/repos/case-memberships.repo";
 import { getSettlementForLease } from "@/server/repos/settlements.repo";
+import { listDeductionProposalsForLease } from "@/server/repos/deduction-proposals.repo";
+import { listEvidenceForCase } from "@/server/repos/evidence.repo";
+import { listUiTimelineEventsForLease } from "@/server/repos/timeline.repo";
 import { CASE_REGISTRY_HERO_IMAGE } from "@/lib/design-assets";
 import { getCasePrimaryAction } from "@/lib/case-actions";
 import { formatMoney } from "@/lib/format-money";
 import { refundAmountCents } from "@/lib/money";
+import { resolvedDeductionAmountCents } from "@/lib/resolved-deduction-cents";
 import { CASE_WORKFLOW_STAGES } from "@/domain";
 import { StatusPill } from "@/components/ui/status-pill";
 import { WireSection } from "@/components/wireframe/wire-section";
@@ -38,9 +42,22 @@ export default async function CaseOverviewPage({
 
   const primaryCta = getCasePrimaryAction(c);
   const settlementPreview = await getSettlementForLease(caseId);
-  const deductionCents =
-    settlementPreview?.deductionAmountCents ?? 40_000;
+  const deductionProposals = await listDeductionProposalsForLease(caseId);
+  const activeDeductionProposal = deductionProposals.find(
+    (p) => p.status === "ACTIVE",
+  );
+  const deductionCents = resolvedDeductionAmountCents({
+    activeDeductionProposal,
+    settlement: settlementPreview,
+  });
   const refundPreview = refundAmountCents(c.depositCents, deductionCents);
+  const evidenceForPreview = await listEvidenceForCase(caseId);
+  const latestEvidence =
+    evidenceForPreview.length > 0
+      ? evidenceForPreview[evidenceForPreview.length - 1]
+      : undefined;
+  const timelinePreview = await listUiTimelineEventsForLease(caseId);
+  const recentTimelineEvents = [...timelinePreview].slice(-2).reverse();
   const caseRoutes = routes.case(c.leaseId);
 
   return (
@@ -239,14 +256,20 @@ export default async function CaseOverviewPage({
             className="border-none bg-surface-low"
           >
             <p className="text-sm text-ink-secondary">
-              4 items · latest: Move-in photos, hallway
+              {evidenceForPreview.length === 0
+                ? "No evidence uploaded yet."
+                : `${evidenceForPreview.length} item${evidenceForPreview.length === 1 ? "" : "s"} · latest: ${latestEvidence?.title ?? "—"}`}
             </p>
             <div className="mt-4 flex gap-2 overflow-x-auto pb-1 no-scrollbar">
-              {[1, 2, 3].map((i) => (
+              {evidenceForPreview.slice(-4).map((ev) => (
                 <div
-                  key={i}
-                  className="h-16 w-24 shrink-0 bg-surface-highest"
-                />
+                  key={ev.evidenceId}
+                  className="flex h-16 w-24 shrink-0 items-center justify-center bg-surface-highest px-1 text-center font-sans text-[9px] uppercase leading-tight tracking-wide text-ink-muted"
+                >
+                  {ev.title.length > 28
+                    ? `${ev.title.slice(0, 26)}…`
+                    : ev.title}
+                </div>
               ))}
             </div>
             <Link
@@ -263,8 +286,15 @@ export default async function CaseOverviewPage({
             className="border-none bg-surface-low"
           >
             <ul className="space-y-2 text-sm text-ink-secondary">
-              <li>Evidence uploaded — {c.tenant.displayName}</li>
-              <li>Case created — You</li>
+              {recentTimelineEvents.length === 0 ? (
+                <li>No timeline events yet.</li>
+              ) : (
+                recentTimelineEvents.map((e) => (
+                  <li key={e.id}>
+                    {e.title} — {e.actorLabel}
+                  </li>
+                ))
+              )}
             </ul>
             <Link
               href={caseRoutes.timeline}

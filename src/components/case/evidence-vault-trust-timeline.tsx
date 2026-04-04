@@ -8,6 +8,7 @@ import type { EvidenceFilterLabel, EvidenceItem } from "@/domain";
 import { EVIDENCE_FILTER_LABELS } from "@/domain";
 import { routes } from "@/config/routes";
 import { TRUST_TIMELINE_IMAGES } from "@/lib/design-assets";
+import { evidenceFileUrl } from "@/lib/evidence-file-url";
 import { formatMoney } from "@/lib/format-money";
 import { formatShortDate } from "@/lib/format-short-date";
 import { formatTimelineTimeUtc } from "@/lib/format-timeline-stamp";
@@ -34,6 +35,94 @@ function submitterName(
   tenant: string,
 ): string {
   return item.submitterRole === "landlord" ? landlord : tenant;
+}
+
+function isPhotoEvidence(item: EvidenceItem): boolean {
+  const t = item.evidenceType;
+  return (
+    t === "MOVE_IN_PHOTO" || t === "MOVE_OUT_PHOTO" || t === "DAMAGE_PHOTO"
+  );
+}
+
+function EvidenceTimelineStill({
+  caseId,
+  item,
+  fallbackIndex,
+  sizes,
+  photoClassName,
+  placeholderClassName,
+}: {
+  caseId: string;
+  item: EvidenceItem;
+  fallbackIndex: number;
+  sizes: string;
+  photoClassName: string;
+  placeholderClassName: string;
+}) {
+  const placeholder =
+    TRUST_TIMELINE_IMAGES[fallbackIndex % TRUST_TIMELINE_IMAGES.length]!;
+  const [usePlaceholder, setUsePlaceholder] = useState(false);
+  const showPhoto = isPhotoEvidence(item) && !usePlaceholder;
+
+  return (
+    <div className="relative h-48 w-full overflow-hidden bg-surface-highest">
+      {showPhoto ? (
+        // eslint-disable-next-line @next/next/no-img-element -- cookie-authenticated API
+        <img
+          src={evidenceFileUrl(caseId, item.evidenceId)}
+          alt={item.title}
+          className={cn("absolute inset-0 h-full w-full", photoClassName)}
+          sizes={sizes}
+          onError={() => setUsePlaceholder(true)}
+        />
+      ) : (
+        <Image
+          src={placeholder}
+          alt=""
+          fill
+          className={placeholderClassName}
+          sizes={sizes}
+        />
+      )}
+    </div>
+  );
+}
+
+function EvidenceTimelineStillOddMobile({
+  caseId,
+  item,
+  fallbackIndex,
+}: {
+  caseId: string;
+  item: EvidenceItem;
+  fallbackIndex: number;
+}) {
+  const placeholder =
+    TRUST_TIMELINE_IMAGES[fallbackIndex % TRUST_TIMELINE_IMAGES.length]!;
+  const [usePlaceholder, setUsePlaceholder] = useState(false);
+  const showPhoto = isPhotoEvidence(item) && !usePlaceholder;
+
+  return (
+    <div className="relative mt-6 h-40 w-full overflow-hidden border border-outline-variant/15 bg-surface-highest md:hidden">
+      {showPhoto ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={evidenceFileUrl(caseId, item.evidenceId)}
+          alt={item.title}
+          className="absolute inset-0 h-full w-full object-cover"
+          onError={() => setUsePlaceholder(true)}
+        />
+      ) : (
+        <Image
+          src={placeholder}
+          alt=""
+          fill
+          className="object-cover grayscale opacity-80"
+          sizes="100vw"
+        />
+      )}
+    </div>
+  );
 }
 
 function categoryEyebrow(item: EvidenceItem): string {
@@ -220,8 +309,6 @@ export function EvidenceVaultTrustTimeline({
         ) : (
           <div className="space-y-24 md:space-y-40">
             {items.map((item, index) => {
-              const imageSrc =
-                TRUST_TIMELINE_IMAGES[index % TRUST_TIMELINE_IMAGES.length]!;
               const layout = rowLayouts[index]!;
 
               if (layout === "disputed") {
@@ -340,15 +427,14 @@ export function EvidenceVaultTrustTimeline({
                           Proof chain: {truncateProofDisplay(item.fileHash)}
                         </span>
                       </div>
-                      <div className="relative h-48 w-full overflow-hidden bg-surface-highest">
-                        <Image
-                          src={imageSrc}
-                          alt="Editorial reference still for evidence timeline"
-                          fill
-                          className="object-cover grayscale contrast-125"
-                          sizes="(min-width: 768px) 40vw, 100vw"
-                        />
-                      </div>
+                      <EvidenceTimelineStill
+                        caseId={caseId}
+                        item={item}
+                        fallbackIndex={index}
+                        sizes="(min-width: 768px) 40vw, 100vw"
+                        photoClassName="object-cover"
+                        placeholderClassName="object-cover grayscale contrast-125"
+                      />
                       <p className="mt-4 font-mono text-[10px] text-ink-muted">
                         {item.roomTag ? `${item.roomTag} · ` : null}
                         {item.evidenceType.replace(/_/g, " ")}
@@ -423,15 +509,11 @@ export function EvidenceVaultTrustTimeline({
                         Vaulted
                       </span>
                     </div>
-                    <div className="relative mt-6 h-40 w-full overflow-hidden border border-outline-variant/15 bg-surface-highest md:hidden">
-                      <Image
-                        src={imageSrc}
-                        alt="Editorial reference still for evidence timeline"
-                        fill
-                        className="object-cover grayscale opacity-80"
-                        sizes="100vw"
-                      />
-                    </div>
+                    <EvidenceTimelineStillOddMobile
+                      caseId={caseId}
+                      item={item}
+                      fallbackIndex={index}
+                    />
                     <Link
                       href={reviewHref}
                       className="mt-6 inline-block font-headline text-[10px] font-bold uppercase tracking-widest text-accent-ledger hover:underline"

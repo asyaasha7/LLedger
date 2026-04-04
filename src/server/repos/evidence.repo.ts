@@ -83,6 +83,36 @@ export async function listEvidenceForCase(
   return rows.map(mapEvidenceRow);
 }
 
+export async function getEvidenceItemByIds(
+  leaseId: string,
+  evidenceId: string,
+): Promise<EvidenceItem | null> {
+  const db = getDb();
+  if (!db) return null;
+
+  const rows = await db<EvidenceRow[]>`
+    SELECT
+      evidence_id,
+      lease_id,
+      submitted_by_user_id,
+      submitter_role,
+      evidence_type,
+      category,
+      title,
+      description,
+      room_tag,
+      file_hash,
+      encrypted_storage_ref,
+      review_status,
+      created_at
+    FROM evidence_items
+    WHERE lease_id = ${leaseId} AND evidence_id = ${evidenceId}
+    LIMIT 1
+  `;
+  const row = rows[0];
+  return row ? mapEvidenceRow(row) : null;
+}
+
 export async function insertEvidenceItem(input: {
   leaseId: string;
   evidenceId: string;

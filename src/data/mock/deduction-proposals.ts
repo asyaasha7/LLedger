@@ -5,8 +5,9 @@ const SEED: DeductionProposal[] = [
   {
     proposalId: "ded-001",
     leaseId: "lease-001",
-    amountCents: 40_000,
-    reason: "Wall touch-up and move-out cleaning per linked evidence",
+    amountCents: 89_250,
+    reason:
+      "Itemized: entry wall repaint touch-up ($275), certified move-out deep clean per vendor invoice ($285), living-room blinds cord + hardware ($332.50). Linked to move-out set (ev-3) and entry damage documentation (ev-4).",
     linkedEvidenceIds: ["ev-3", "ev-4"],
     status: "ACTIVE",
     createdAt: "2026-04-01T17:00:00.000Z",

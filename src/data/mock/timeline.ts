@@ -47,7 +47,8 @@ const EVENTS_LEASE_001: TimelineEvent[] = [
     title: "Deduction proposed",
     actorLabel: "You",
     timestampLabel: "Apr 3, 2026 · 3:00 PM",
-    detail: "Landlord linked move-out and damage evidence",
+    detail:
+      "Landlord published itemized $892.50 (paint, cleaning, blinds) tied to ev-3 / ev-4.",
     tone: "neutral",
     eventType: "DEDUCTION_PROPOSED",
   },
@@ -57,7 +58,8 @@ const EVENTS_LEASE_001: TimelineEvent[] = [
     title: "Awaiting settlement response",
     actorLabel: "Jordan Lee",
     timestampLabel: "Apr 4, 2026 · 4:00 PM",
-    detail: "Proposed deduction is open for tenant review.",
+    detail:
+      "Settlement row shows $2,307.50 refund after deposit minus deduction; tenant sign-off pending.",
     tone: "neutral",
   },
 ];
