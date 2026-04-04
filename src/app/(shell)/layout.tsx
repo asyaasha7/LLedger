@@ -7,6 +7,7 @@ import {
 } from "@/components/shell/top-context-bar";
 import { getSessionUser } from "@/server/auth/session";
 import { isDatabaseConfigured } from "@/server/db/client";
+import { userCanActAsLandlord } from "@/server/repos/case-memberships.repo";
 import { routes } from "@/config/routes";
 
 function navUserFromSession(user: User): TopContextBarUser {
@@ -29,17 +30,19 @@ export default async function ShellLayout({
   children: React.ReactNode;
 }>) {
   let navUser: TopContextBarUser | null = null;
+  let landlordFeaturesEnabled = true;
   if (isDatabaseConfigured()) {
     const user = await getSessionUser();
     if (!user) {
       redirect(routes.login);
     }
     navUser = navUserFromSession(user);
+    landlordFeaturesEnabled = await userCanActAsLandlord(user.id);
   }
 
   return (
     <div className="relative min-h-screen bg-surface text-ink">
-      <AppSidebar />
+      <AppSidebar landlordFeaturesEnabled={landlordFeaturesEnabled} />
       <div className="min-h-screen pl-sidebar">
         <TopContextBar user={navUser} />
         <main className="min-h-[calc(100vh-5rem)] bg-surface">

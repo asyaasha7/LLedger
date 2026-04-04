@@ -7,7 +7,11 @@ import { routes } from "@/config/routes";
 import { cn } from "@/lib/cn";
 import { SignOutButton } from "@/components/shell/sign-out-button";
 
-export function AppSidebar() {
+export function AppSidebar({
+  landlordFeaturesEnabled = true,
+}: {
+  landlordFeaturesEnabled?: boolean;
+}) {
   const pathname = usePathname();
 
   return (
@@ -18,7 +22,7 @@ export function AppSidebar() {
             LeaseLedger
           </span>
           <p className="mt-2 font-headline text-[10px] font-bold uppercase tracking-[0.2em] text-ink-muted">
-            Executive Portal
+            {landlordFeaturesEnabled ? "Executive Portal" : "Tenant access"}
           </p>
         </Link>
       </div>
@@ -49,12 +53,14 @@ export function AppSidebar() {
       </nav>
 
       <div className="mt-auto space-y-4 border-t border-outline-variant/20 pt-8">
-        <Link
-          href={routes.newCase}
-          className="flex w-full items-center justify-center bg-accent-ledger py-4 font-headline text-xs font-bold uppercase tracking-widest text-accent-on-ledger transition-opacity hover:opacity-90 active:scale-[0.99]"
-        >
-          New Entry
-        </Link>
+        {landlordFeaturesEnabled ? (
+          <Link
+            href={routes.newCase}
+            className="flex w-full items-center justify-center bg-accent-ledger py-4 font-headline text-xs font-bold uppercase tracking-widest text-accent-on-ledger transition-opacity hover:opacity-90 active:scale-[0.99]"
+          >
+            New Entry
+          </Link>
+        ) : null}
         <div className="space-y-1">
           <SignOutButton />
           {SIDEBAR_FOOTER_ACTIONS.map(({ label, icon: Icon }) => (

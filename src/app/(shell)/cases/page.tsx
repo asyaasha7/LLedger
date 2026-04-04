@@ -6,11 +6,14 @@ import {
   listLeaseCases,
   listLeaseCasesForUser,
 } from "@/server/repos/lease-cases.repo";
+import { userCanActAsLandlord } from "@/server/repos/case-memberships.repo";
 import { formatMoney } from "@/lib/format-money";
 import { StatusPill } from "@/components/ui/status-pill";
 
 export default async function CasesPage() {
   const user = await getSessionUser();
+  const landlordFeatures =
+    !isDatabaseConfigured() || !user || (await userCanActAsLandlord(user.id));
   const cases =
     isDatabaseConfigured() && user
       ? await listLeaseCasesForUser(user.id)
@@ -27,12 +30,14 @@ export default async function CasesPage() {
             All cases
           </h1>
         </div>
-        <Link
-          href={routes.newCase}
-          className="inline-flex h-11 items-center justify-center bg-accent-ledger px-6 font-headline text-[10px] font-bold uppercase tracking-widest text-accent-on-ledger transition-opacity hover:opacity-90"
-        >
-          New entry
-        </Link>
+        {landlordFeatures ? (
+          <Link
+            href={routes.newCase}
+            className="inline-flex h-11 items-center justify-center bg-accent-ledger px-6 font-headline text-[10px] font-bold uppercase tracking-widest text-accent-on-ledger transition-opacity hover:opacity-90"
+          >
+            New entry
+          </Link>
+        ) : null}
       </div>
 
       <ul className="border border-outline-variant/20 bg-surface-low">

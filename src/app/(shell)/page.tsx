@@ -7,6 +7,7 @@ import {
   listLeaseCases,
   listLeaseCasesForUser,
 } from "@/server/repos/lease-cases.repo";
+import { userCanActAsLandlord } from "@/server/repos/case-memberships.repo";
 import { formatMoney } from "@/lib/format-money";
 import { StatusPill } from "@/components/ui/status-pill";
 import { WireSection } from "@/components/wireframe/wire-section";
@@ -15,6 +16,8 @@ import { cn } from "@/lib/cn";
 
 export default async function DashboardPage() {
   const user = await getSessionUser();
+  const landlordFeatures =
+    !isDatabaseConfigured() || !user || (await userCanActAsLandlord(user.id));
   const cases =
     isDatabaseConfigured() && user
       ? await listLeaseCasesForUser(user.id)
@@ -25,9 +28,13 @@ export default async function DashboardPage() {
     return (
       <EmptyState
         headline="No lease cases yet"
-        text="Create your first case to start recording evidence and deposit workflow"
-        ctaLabel="Create Case"
-        ctaHref={routes.newCase}
+        text={
+          landlordFeatures
+            ? "Create your first case to start recording evidence and deposit workflow"
+            : "You are not on any cases yet. Ask your landlord to send an invite to this email address, then open the link from your inbox."
+        }
+        ctaLabel={landlordFeatures ? "Create Case" : undefined}
+        ctaHref={landlordFeatures ? routes.newCase : undefined}
       />
     );
   }
@@ -236,16 +243,18 @@ export default async function DashboardPage() {
         </WireSection>
       </section>
 
-      <div className="flex justify-center">
-        <Link
-          href={routes.newCase}
-          className={cn(
-            "inline-flex h-12 items-center justify-center bg-accent-ledger px-8 font-headline text-xs font-bold uppercase tracking-widest text-accent-on-ledger transition-opacity hover:opacity-90",
-          )}
-        >
-          Create new case
-        </Link>
-      </div>
+      {landlordFeatures ? (
+        <div className="flex justify-center">
+          <Link
+            href={routes.newCase}
+            className={cn(
+              "inline-flex h-12 items-center justify-center bg-accent-ledger px-8 font-headline text-xs font-bold uppercase tracking-widest text-accent-on-ledger transition-opacity hover:opacity-90",
+            )}
+          >
+            Create new case
+          </Link>
+        </div>
+      ) : null}
     </div>
   );
 }

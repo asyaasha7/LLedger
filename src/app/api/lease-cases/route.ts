@@ -9,6 +9,7 @@ import {
 import {
   listLeaseCasesForUser,
 } from "@/server/repos/lease-cases.repo";
+import { userCanActAsLandlord } from "@/server/repos/case-memberships.repo";
 import { bootstrapHederaForNewLeaseCase } from "@/server/services/bootstrap-hedera-new-case";
 
 export async function GET() {
@@ -36,6 +37,13 @@ export async function POST(request: Request) {
   const user = await getSessionUser();
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  if (!(await userCanActAsLandlord(user.id))) {
+    return NextResponse.json(
+      { error: "Only landlords can create lease cases" },
+      { status: 403 },
+    );
   }
 
   const idempotencyKey = request.headers.get("Idempotency-Key")?.trim();

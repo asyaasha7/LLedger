@@ -127,6 +127,10 @@ export async function listLeaseCasesForUser(
         WHERE m.lease_id = lc.lease_id AND m.user_id = ${userId}::uuid
       )
       OR lc.landlord_user_id = ${userId}
+      OR (
+        lc.tenant_user_id IS NOT NULL
+        AND lc.tenant_user_id = ${userId}
+      )
     ORDER BY lc.created_at DESC
   `;
   return rows.map(mapRow);

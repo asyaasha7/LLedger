@@ -21,9 +21,55 @@ export async function hasCaseAccess(
         SELECT 1 FROM lease_cases lc
         WHERE lc.lease_id = ${leaseId} AND lc.landlord_user_id = ${userId}
       )
+      OR EXISTS (
+        SELECT 1 FROM lease_cases lc
+        WHERE lc.lease_id = ${leaseId}
+          AND lc.tenant_user_id IS NOT NULL
+          AND lc.tenant_user_id = ${userId}
+      )
     ) AS ok
   `;
   return Boolean(rows[0]?.ok);
+}
+
+/**
+ * Landlord UI (create case, etc.): user is a landlord on some lease or has no
+ * case access yet (new signup). False = tenant-only (invited user on at least
+ * one lease, never a landlord).
+ */
+export async function userCanActAsLandlord(userId: string): Promise<boolean> {
+  const db = getDb();
+  if (!db) return true;
+
+  const cap = await db<{ ok: boolean }[]>`
+    SELECT (
+      EXISTS (
+        SELECT 1 FROM case_memberships m
+        WHERE m.user_id = ${userId}::uuid AND m.role = 'landlord'
+      )
+      OR EXISTS (
+        SELECT 1 FROM lease_cases lc
+        WHERE lc.landlord_user_id = ${userId}
+      )
+    ) AS ok
+  `;
+  if (cap[0]?.ok) return true;
+
+  const anyCaseTie = await db<{ ok: boolean }[]>`
+    SELECT (
+      EXISTS (
+        SELECT 1 FROM case_memberships m
+        WHERE m.user_id = ${userId}::uuid
+      )
+      OR EXISTS (
+        SELECT 1 FROM lease_cases lc
+        WHERE lc.tenant_user_id IS NOT NULL AND lc.tenant_user_id = ${userId}
+      )
+    ) AS ok
+  `;
+  if (!anyCaseTie[0]?.ok) return true;
+
+  return false;
 }
 
 export async function getMembershipRole(

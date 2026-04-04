@@ -1,9 +1,21 @@
+import { redirect } from "next/navigation";
+import { getSessionUser } from "@/server/auth/session";
+import { isDatabaseConfigured } from "@/server/db/client";
+import { userCanActAsLandlord } from "@/server/repos/case-memberships.repo";
+import { routes } from "@/config/routes";
 import { CreateCaseForm } from "./create-case-form";
 
 /** Avoid static prerender issues with sibling `[caseId]` vs `new` segment. */
 export const dynamic = "force-dynamic";
 
-export default function CreateCasePage() {
+export default async function CreateCasePage() {
+  if (isDatabaseConfigured()) {
+    const user = await getSessionUser();
+    if (user && !(await userCanActAsLandlord(user.id))) {
+      redirect(routes.dashboard);
+    }
+  }
+
   return (
     <div className="mx-auto max-w-prose py-4">
       <div className="mb-10">
