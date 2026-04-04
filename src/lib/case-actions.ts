@@ -5,11 +5,6 @@ const SETTLEMENT_REVIEW_STATUSES: ReadonlySet<LeaseCaseStatus> = new Set([
   "SETTLEMENT_PENDING",
 ]);
 
-const REFUND_TRACKING_STATUSES: ReadonlySet<LeaseCaseStatus> = new Set([
-  "APPROVED_FOR_REFUND",
-  "REFUND_SCHEDULED",
-]);
-
 export function caseNeedsSettlementReview(status: LeaseCaseStatus): boolean {
   return SETTLEMENT_REVIEW_STATUSES.has(status);
 }
@@ -25,10 +20,22 @@ export function getCasePrimaryAction(caseData: LeaseCase): {
       label: "Review settlement",
     };
   }
-  if (REFUND_TRACKING_STATUSES.has(caseData.status)) {
+  if (caseData.status === "APPROVED_FOR_REFUND") {
+    return {
+      href: r.settlement,
+      label: "Schedule refund",
+    };
+  }
+  if (caseData.status === "REFUND_SCHEDULED") {
+    return {
+      href: r.settlement,
+      label: "Confirm refund executed",
+    };
+  }
+  if (caseData.status === "REFUND_COMPLETE") {
     return {
       href: r.timeline,
-      label: "View refund status",
+      label: "View ledger",
     };
   }
   return {

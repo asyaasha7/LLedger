@@ -83,6 +83,11 @@ export function CaseTimelineList({ events }: { events: TimelineEvent[] }) {
                     {event.eventType}
                   </p>
                 ) : null}
+                {event.hederaLabel ? (
+                  <p className="mt-2 text-[10px] font-bold uppercase tracking-widest text-accent-ledger">
+                    {event.hederaLabel}
+                  </p>
+                ) : null}
               </div>
             </li>
           );

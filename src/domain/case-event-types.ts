@@ -4,6 +4,7 @@
  */
 export type CaseEventType =
   | "LEASE_CREATED"
+  | "TENANT_JOINED"
   | "EVIDENCE_SUBMITTED"
   | "EVIDENCE_ACKNOWLEDGED"
   | "EVIDENCE_DISPUTED"

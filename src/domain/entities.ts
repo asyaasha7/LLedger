@@ -181,6 +181,8 @@ export interface TimelineEvent {
   tone: TimelineTone;
   /** When present, ties the row to the HCS vocabulary. */
   eventType?: CaseEventType;
+  /** Hedera sync / Mirror verification badge copy. */
+  hederaLabel?: string;
 }
 
 export type { CaseEventType } from "./case-event-types";

@@ -28,5 +28,14 @@ export const hederaConfig = {
     "https://testnet.mirrornode.hedera.com",
 } as const;
 
+/** True when public flag is on and server operator credentials are present. */
+export function isHederaOperational(): boolean {
+  return (
+    hederaConfig.enabled &&
+    Boolean(readEnv("HEDERA_OPERATOR_ID")?.trim()) &&
+    Boolean(readEnv("HEDERA_OPERATOR_KEY")?.trim())
+  );
+}
+
 export const HEDERA_PRIVACY_NOTE =
   "Raw evidence is never published on Hedera — only hashes, private storage refs, and workflow events.";
