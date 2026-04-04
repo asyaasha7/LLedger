@@ -3,10 +3,19 @@ import { notFound } from "next/navigation";
 import { CheckCircle, AlertTriangle } from "lucide-react";
 import { routes } from "@/config/routes";
 import { getLeaseCaseForRequest } from "@/server/lease-case-view";
+import { getSessionUser } from "@/server/auth/session";
+import { isDatabaseConfigured } from "@/server/db/client";
+import { getMembershipRole } from "@/server/repos/case-memberships.repo";
 import { getSettlementForLease } from "@/server/repos/settlements.repo";
 import { listDeductionProposalsForLease } from "@/server/repos/deduction-proposals.repo";
+import {
+  canLandlordSubmitProposal,
+  canProposeDeductionSettlement,
+  canRecordRefundExecuted,
+} from "@/lib/settlement-workflow";
 import type { Settlement } from "@/domain";
 import { Button } from "@/components/ui/button";
+import { SettlementActions } from "@/components/case/settlement-actions";
 import { formatMoney } from "@/lib/format-money";
 import { refundAmountCents } from "@/lib/money";
 
@@ -37,11 +46,44 @@ export default async function SettlementPage({
   const deposit = settlement.depositAmountCents;
   const deduction = settlement.deductionAmountCents;
   const refund = refundAmountCents(deposit, deduction);
-  const settlementComplete = settlement.status === "EXECUTED";
+  const settlementComplete =
+    settlement.status === "EXECUTED" || c.status === "REFUND_COMPLETE";
+  const refundScheduledPendingExecution =
+    c.status === "REFUND_SCHEDULED" && !settlementComplete;
 
   const overviewHref = routes.case(caseId).overview;
   const proposals = await listDeductionProposalsForLease(caseId);
   const activeDeduction = proposals.find((p) => p.status === "ACTIVE");
+
+  const user =
+    isDatabaseConfigured() ? await getSessionUser() : null;
+  const membershipRole =
+    user && isDatabaseConfigured()
+      ? await getMembershipRole(caseId, user.id)
+      : null;
+  const hasActiveDeduction = proposals.some((p) => p.status === "ACTIVE");
+  const settlementStatus = existing?.status;
+  const canPropose =
+    membershipRole === "landlord" &&
+    hasActiveDeduction &&
+    canProposeDeductionSettlement(c.status) &&
+    canLandlordSubmitProposal(c.status, settlementStatus);
+  const canRespond =
+    Boolean(membershipRole) &&
+    settlementStatus === "PROPOSED" &&
+    (membershipRole === "landlord" || membershipRole === "tenant");
+  const canScheduleRefund =
+    membershipRole === "landlord" &&
+    existing?.status === "APPROVED" &&
+    c.status === "APPROVED_FOR_REFUND" &&
+    !existing?.hederaScheduleId;
+  const canCompleteRefund =
+    membershipRole === "landlord" &&
+    canRecordRefundExecuted({
+      leaseStatus: c.status,
+      settlementStatus: existing?.status,
+      hederaScheduleId: existing?.hederaScheduleId ?? c.hederaRefundScheduleId,
+    });
 
   return (
     <div className="mx-auto max-w-6xl space-y-16">
@@ -117,17 +159,27 @@ export default async function SettlementPage({
           </div>
 
           {!settlementComplete ? (
-            <div className="mt-12 flex flex-wrap gap-4 border-t border-outline-variant/20 pt-10">
-              <Button variant="primary" className="px-8">
-                Approve settlement
-              </Button>
-              <Button variant="destructive" className="px-8">
-                Reject
-              </Button>
-              <Button variant="secondary" className="px-8">
-                Schedule refund
-              </Button>
-            </div>
+            isDatabaseConfigured() ? (
+              <SettlementActions
+                leaseId={caseId}
+                canPropose={canPropose}
+                canRespond={canRespond}
+                canScheduleRefund={canScheduleRefund}
+                canCompleteRefund={canCompleteRefund}
+              />
+            ) : (
+              <div className="mt-12 flex flex-wrap gap-4 border-t border-outline-variant/20 pt-10">
+                <Button variant="primary" className="px-8">
+                  Approve settlement
+                </Button>
+                <Button variant="destructive" className="px-8">
+                  Reject
+                </Button>
+                <Button variant="secondary" className="px-8">
+                  Schedule refund
+                </Button>
+              </div>
+            )
           ) : null}
         </div>
 
@@ -193,6 +245,23 @@ export default async function SettlementPage({
         </div>
       </div>
 
+      {refundScheduledPendingExecution ? (
+        <section className="border border-amber-500/35 bg-amber-500/5 p-8 text-center sm:p-10">
+          <p className="font-headline text-sm font-bold uppercase tracking-widest text-amber-600 dark:text-amber-400">
+            Refund scheduled
+          </p>
+          <p className="mt-2 text-sm text-ink-secondary">
+            Awaiting execution. When the transfer has cleared, confirm below to
+            close the case ledger.
+          </p>
+          {c.hederaRefundScheduleId ? (
+            <p className="mt-4 font-mono text-xs text-ink-muted">
+              Schedule · {c.hederaRefundScheduleId}
+            </p>
+          ) : null}
+        </section>
+      ) : null}
+
       {settlementComplete ? (
         <section className="border border-emerald-500/30 bg-emerald-500/5 p-10 text-center">
           <p className="font-headline text-sm font-bold uppercase tracking-widest text-emerald-400">
@@ -201,9 +270,15 @@ export default async function SettlementPage({
           <p className="mt-2 font-headline text-4xl font-black tabular-nums text-ink">
             {formatMoney(refund)}
           </p>
-          <p className="mt-4 text-xs text-ink-muted">
-            Ref · ACH-204481 · Apr 8, 2026
-          </p>
+          {c.hederaRefundScheduleId ? (
+            <p className="mt-4 font-mono text-xs text-ink-muted">
+              Schedule · {c.hederaRefundScheduleId}
+            </p>
+          ) : (
+            <p className="mt-4 text-xs text-ink-muted">
+              Case status: REFUND_COMPLETE
+            </p>
+          )}
         </section>
       ) : null}
 

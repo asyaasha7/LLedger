@@ -1,7 +1,10 @@
 import { notFound } from "next/navigation";
 import { getLeaseCaseForRequest } from "@/server/lease-case-view";
+import { getSessionUser } from "@/server/auth/session";
+import { getMembershipRole } from "@/server/repos/case-memberships.repo";
 import { listEvidenceForCase } from "@/server/repos/evidence.repo";
-import { Button } from "@/components/ui/button";
+import { isDatabaseConfigured } from "@/server/db/client";
+import { EvidenceReviewActions } from "@/components/case/evidence-review-actions";
 import { WireSection } from "@/components/wireframe/wire-section";
 
 export default async function EvidenceReviewPage({
@@ -15,6 +18,21 @@ export default async function EvidenceReviewPage({
 
   const evidenceRows = await listEvidenceForCase(caseId);
   const sample = evidenceRows[0];
+
+  const user =
+    isDatabaseConfigured() ? await getSessionUser() : null;
+  const membershipRole =
+    user && isDatabaseConfigured()
+      ? await getMembershipRole(caseId, user.id)
+      : null;
+  const canReview =
+    membershipRole === "landlord" || membershipRole === "tenant"
+      ? evidenceRows.some(
+          (e) =>
+            e.reviewStatus === "SUBMITTED" &&
+            e.submitterRole !== membershipRole,
+        )
+      : false;
 
   return (
     <div className="grid min-h-[60vh] gap-4 lg:grid-cols-2">
@@ -83,16 +101,12 @@ export default async function EvidenceReviewPage({
                 "Select an evidence item from the library to review."}
             </p>
           </div>
-          <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-            <Button variant="primary" className="flex-1 sm:flex-none">
-              Acknowledge
-            </Button>
-            <Button variant="secondary" className="flex-1 sm:flex-none">
-              Dispute
-            </Button>
-            <Button variant="ghost" className="flex-1 border border-transparent sm:flex-none">
-              Add comment
-            </Button>
+          <div className="mt-6 border-t border-outline-variant/15 pt-6">
+            <EvidenceReviewActions
+              leaseId={caseId}
+              items={evidenceRows}
+              canReview={canReview}
+            />
           </div>
         </div>
 

@@ -1,5 +1,8 @@
 import { CreateCaseForm } from "./create-case-form";
 
+/** Avoid static prerender issues with sibling `[caseId]` vs `new` segment. */
+export const dynamic = "force-dynamic";
+
 export default function CreateCasePage() {
   return (
     <div className="mx-auto max-w-prose py-4">

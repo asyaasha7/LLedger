@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 import { routes } from "@/config/routes";
 import { acceptLeaseInvite } from "@/server/repos/lease-invites.repo";
+import { publishCaseEventToHedera } from "@/server/services/publish-case-event-hedera";
 
 function getSupabaseUrlAndKey() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -67,6 +68,9 @@ export async function GET(request: Request) {
     });
 
     if (result.ok) {
+      if (result.tenantJoinedCaseEventId) {
+        await publishCaseEventToHedera(result.tenantJoinedCaseEventId);
+      }
       return NextResponse.redirect(
         new URL(`/cases/${result.leaseId}`, request.url),
       );
