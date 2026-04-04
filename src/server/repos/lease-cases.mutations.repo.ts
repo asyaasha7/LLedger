@@ -21,13 +21,21 @@ export type CreateLeaseCaseInput = {
 
 export async function createLeaseCaseWithMembership(
   input: CreateLeaseCaseInput,
-): Promise<{ leaseId: string; leaseRef: string }> {
+): Promise<{
+  leaseId: string;
+  leaseRef: string;
+  leaseCreatedCaseEventId: string;
+  leaseCreatedPublicEventId: string;
+}> {
   const db = getDb();
   if (!db) throw new Error("DATABASE_URL is not configured");
 
   const leaseId = `lease-${randomUUID()}`;
   const leaseRef = `LL-${Date.now().toString(36).toUpperCase()}`;
   const nextAction = "Invite your tenant to join this case";
+
+  let leaseCreatedCaseEventId = "";
+  let leaseCreatedPublicEventId = "";
 
   await db.begin(async (t) => {
     const sql = t as unknown as postgres.Sql;
@@ -87,7 +95,7 @@ export async function createLeaseCaseWithMembership(
       )
     `;
 
-    await appendCaseEvent(
+    const created = await appendCaseEvent(
       {
         leaseId,
         eventType: "LEASE_CREATED",
@@ -102,9 +110,16 @@ export async function createLeaseCaseWithMembership(
       },
       sql,
     );
+    leaseCreatedCaseEventId = created.caseEventId;
+    leaseCreatedPublicEventId = created.eventId;
   });
 
-  return { leaseId, leaseRef };
+  return {
+    leaseId,
+    leaseRef,
+    leaseCreatedCaseEventId,
+    leaseCreatedPublicEventId,
+  };
 }
 
 export async function findLeaseIdByIdempotencyKey(

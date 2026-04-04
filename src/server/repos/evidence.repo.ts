@@ -95,9 +95,12 @@ export async function insertEvidenceItem(input: {
   roomTag?: string | null;
   fileHash: string;
   encryptedStorageRef: string;
-}): Promise<void> {
+}): Promise<{ caseEventId: string; eventId: string }> {
   const db = getDb();
   if (!db) throw new Error("DATABASE_URL is not configured");
+
+  let caseEventId = "";
+  let eventId = "";
 
   await db.begin(async (t) => {
     const sql = t as unknown as postgres.Sql;
@@ -132,7 +135,7 @@ export async function insertEvidenceItem(input: {
       )
     `;
 
-    await appendCaseEvent(
+    const appended = await appendCaseEvent(
       {
         leaseId: input.leaseId,
         eventType: "EVIDENCE_SUBMITTED",
@@ -147,7 +150,113 @@ export async function insertEvidenceItem(input: {
       },
       sql,
     );
+    caseEventId = appended.caseEventId;
+    eventId = appended.eventId;
   });
+
+  return { caseEventId, eventId };
+}
+
+export type EvidenceReviewAction = "acknowledge" | "dispute";
+
+export async function applyEvidenceReviewAction(input: {
+  leaseId: string;
+  evidenceId: string;
+  reviewerUserId: string;
+  reviewerRole: UserRole;
+  action: EvidenceReviewAction;
+  note?: string | null;
+}): Promise<
+  | { ok: true; caseEventId: string; eventId: string }
+  | {
+      ok: false;
+      code: "not_found" | "cannot_review_own" | "invalid_status";
+    }
+> {
+  const db = getDb();
+  if (!db) throw new Error("DATABASE_URL is not configured");
+
+  const eventType =
+    input.action === "acknowledge"
+      ? "EVIDENCE_ACKNOWLEDGED"
+      : "EVIDENCE_DISPUTED";
+  const newStatus =
+    input.action === "acknowledge" ? "ACKNOWLEDGED" : "DISPUTED";
+
+  type TxResult =
+    | { err: "not_found" | "cannot_review_own" | "invalid_status" }
+    | { ok: true; caseEventId: string; eventId: string };
+
+  const tx = await db.begin(async (t) => {
+    const sql = t as unknown as postgres.Sql;
+    const rows = await sql<EvidenceRow[]>`
+      SELECT
+        evidence_id,
+        lease_id,
+        submitted_by_user_id,
+        submitter_role,
+        evidence_type,
+        category,
+        title,
+        description,
+        room_tag,
+        file_hash,
+        encrypted_storage_ref,
+        review_status,
+        created_at
+      FROM evidence_items
+      WHERE lease_id = ${input.leaseId} AND evidence_id = ${input.evidenceId}
+      FOR UPDATE
+    `;
+    const row = rows[0];
+    if (!row) {
+      return { err: "not_found" } as const;
+    }
+    if (row.submitter_role === input.reviewerRole) {
+      return { err: "cannot_review_own" } as const;
+    }
+    if (row.review_status !== "SUBMITTED") {
+      return { err: "invalid_status" } as const;
+    }
+
+    await sql`
+      UPDATE evidence_items
+      SET review_status = ${newStatus}
+      WHERE lease_id = ${input.leaseId} AND evidence_id = ${input.evidenceId}
+    `;
+
+    const note = input.note?.trim() || null;
+    const payload: Record<string, string> = {
+      evidenceId: row.evidence_id,
+      fileHash: row.file_hash,
+      title: row.title,
+      reviewerUserId: input.reviewerUserId,
+    };
+    if (note && input.action === "dispute") {
+      payload.reason = note;
+    }
+
+    const appended = await appendCaseEvent(
+      {
+        leaseId: input.leaseId,
+        eventType,
+        actorRole: input.reviewerRole,
+        payload,
+      },
+      sql,
+    );
+    return {
+      ok: true as const,
+      caseEventId: appended.caseEventId,
+      eventId: appended.eventId,
+    };
+  });
+
+  const result = tx as TxResult;
+  if ("err" in result) {
+    return { ok: false, code: result.err };
+  }
+  return { ok: true, caseEventId: result.caseEventId, eventId: result.eventId };
 }
 
 export async function countDisputedEvidenceGlobally(): Promise<number> {

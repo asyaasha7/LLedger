@@ -2,6 +2,8 @@ import "server-only";
 
 import { randomBytes } from "crypto";
 import type postgres from "postgres";
+import { checkInviteAcceptance } from "@/lib/invite-validation";
+import { appendCaseEvent } from "@/server/repos/case-events.repo";
 import { getDb } from "@/server/db/client";
 
 export async function createLeaseInvite(input: {
@@ -63,18 +65,21 @@ export async function acceptLeaseInvite(input: {
   if (!db) throw new Error("DATABASE_URL is not configured");
 
   const invite = await getInviteByToken(input.token);
-  if (!invite || invite.accepted_at) {
+  const gate = checkInviteAcceptance({
+    inviteFound: Boolean(invite),
+    acceptedAt: invite?.accepted_at,
+    expiresAt: invite?.expires_at ?? new Date(0).toISOString(),
+    inviteEmail: invite?.email ?? "",
+    userEmail: input.userEmail,
+  });
+  if (!gate.ok) {
+    return { ok: false as const, reason: gate.reason };
+  }
+  if (!invite) {
     return { ok: false as const, reason: "invalid_or_used" as const };
   }
-  if (new Date(invite.expires_at) < new Date()) {
-    return { ok: false as const, reason: "expired" as const };
-  }
-  const emailMatch =
-    invite.email.trim().toLowerCase() ===
-    input.userEmail.trim().toLowerCase();
-  if (!emailMatch) {
-    return { ok: false as const, reason: "email_mismatch" as const };
-  }
+
+  let tenantJoinedCaseEventId = "";
 
   await db.begin(async (t) => {
     const sql = t as unknown as postgres.Sql;
@@ -105,7 +110,26 @@ export async function acceptLeaseInvite(input: {
       )
       ON CONFLICT (lease_id, user_id) DO NOTHING
     `;
+
+    const joined = await appendCaseEvent(
+      {
+        leaseId: invite.lease_id,
+        eventType: "TENANT_JOINED",
+        actorRole: "tenant",
+        payload: {
+          userId: input.userId,
+          displayName: input.displayName,
+          inviteEmail: invite.email,
+        },
+      },
+      sql,
+    );
+    tenantJoinedCaseEventId = joined.caseEventId;
   });
 
-  return { ok: true as const, leaseId: invite.lease_id };
+  return {
+    ok: true as const,
+    leaseId: invite.lease_id,
+    tenantJoinedCaseEventId,
+  };
 }
