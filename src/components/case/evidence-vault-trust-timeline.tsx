@@ -548,8 +548,14 @@ export function EvidenceVaultTrustTimeline({
                       {item.title}
                     </h2>
                     <p className="mt-4 max-w-md font-sans leading-relaxed text-ink-secondary">
-                      {item.description} Record sealed with content hash and
-                      off-chain encrypted storage reference.
+                      {item.description}
+                      {evidenceMayShowVaultImage(item) ? null : (
+                        <>
+                          {" "}
+                          Record sealed with content hash and off-chain
+                          encrypted storage reference.
+                        </>
+                      )}
                     </p>
                     <div className="mt-6 flex flex-wrap gap-2">
                       <span className="bg-accent-ledger/15 px-3 py-1 font-sans text-[9px] font-medium uppercase tracking-widest text-accent-ledger">
@@ -558,6 +564,16 @@ export function EvidenceVaultTrustTimeline({
                       <span className="bg-surface-highest px-3 py-1 font-sans text-[9px] uppercase tracking-widest text-ink-muted">
                         Vaulted
                       </span>
+                    </div>
+                    <div className="mt-6 hidden max-w-xl md:block">
+                      <EvidenceTimelineStill
+                        caseId={caseId}
+                        item={item}
+                        fallbackIndex={index}
+                        sizes="(min-width: 768px) 40vw, 100vw"
+                        photoClassName="object-cover"
+                        placeholderClassName="object-cover grayscale contrast-125"
+                      />
                     </div>
                     <EvidenceTimelineStillOddMobile
                       caseId={caseId}
