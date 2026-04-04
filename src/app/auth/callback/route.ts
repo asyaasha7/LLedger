@@ -1,6 +1,6 @@
-import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
+import { type NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
+import type { CookieOptions } from "@supabase/ssr";
 import { routes } from "@/config/routes";
 import { acceptLeaseInvite } from "@/server/repos/lease-invites.repo";
 import { publishCaseEventToHedera } from "@/server/services/publish-case-event-hedera";
@@ -13,11 +13,16 @@ function getSupabaseUrlAndKey() {
   return { url, key };
 }
 
-export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const code = searchParams.get("code");
-  const inviteToken = searchParams.get("invite_token");
-  const nextPath = searchParams.get("next") ?? routes.dashboard;
+/**
+ * PKCE cookies from exchangeCodeForSession must be copied onto the same
+ * NextResponse as the redirect — `cookies()` in Route Handlers does not attach
+ * Set-Cookie to redirects (common cause of `?error=auth` after magic link).
+ */
+export async function GET(request: NextRequest) {
+  const requestUrl = new URL(request.url);
+  const code = requestUrl.searchParams.get("code");
+  const inviteToken = requestUrl.searchParams.get("invite_token");
+  const nextPath = requestUrl.searchParams.get("next") ?? routes.dashboard;
 
   const { url, key } = getSupabaseUrlAndKey();
   if (!url?.trim() || !key?.trim()) {
@@ -26,16 +31,23 @@ export async function GET(request: Request) {
     );
   }
 
-  const cookieStore = await cookies();
+  const merged = new Map<string, { name: string; value: string }>();
+  for (const c of request.cookies.getAll()) {
+    merged.set(c.name, { name: c.name, value: c.value });
+  }
+
+  const toSet: { name: string; value: string; options?: CookieOptions }[] = [];
+
   const supabase = createServerClient(url, key, {
     cookies: {
       getAll() {
-        return cookieStore.getAll();
+        return [...merged.values()];
       },
       setAll(cookiesToSet) {
-        cookiesToSet.forEach(({ name, value, options }) =>
-          cookieStore.set(name, value, options),
-        );
+        cookiesToSet.forEach(({ name, value, options }) => {
+          merged.set(name, { name, value });
+          toSet.push({ name, value, options });
+        });
       },
     },
   });
@@ -43,6 +55,7 @@ export async function GET(request: Request) {
   if (code) {
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (error) {
+      console.error("[auth/callback] exchangeCodeForSession:", error.message);
       return NextResponse.redirect(
         new URL(`${routes.login}?error=auth`, request.url),
       );
@@ -52,6 +65,8 @@ export async function GET(request: Request) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
+
+  let redirectPath: string;
 
   if (inviteToken && user?.email) {
     const displayName =
@@ -71,17 +86,19 @@ export async function GET(request: Request) {
       if (result.tenantJoinedCaseEventId) {
         await publishCaseEventToHedera(result.tenantJoinedCaseEventId);
       }
-      return NextResponse.redirect(
-        new URL(`/cases/${result.leaseId}`, request.url),
-      );
+      redirectPath = `/cases/${result.leaseId}`;
+    } else {
+      redirectPath = `${routes.login}?error=invite_${result.reason}`;
     }
-    return NextResponse.redirect(
-      new URL(
-        `${routes.login}?error=invite_${result.reason}`,
-        request.url,
-      ),
-    );
+  } else {
+    redirectPath = nextPath.startsWith("/") ? nextPath : `/${nextPath}`;
   }
 
-  return NextResponse.redirect(new URL(nextPath, request.url));
+  const response = NextResponse.redirect(
+    new URL(redirectPath, requestUrl.origin),
+  );
+  for (const { name, value, options } of toSet) {
+    response.cookies.set(name, value, options);
+  }
+  return response;
 }

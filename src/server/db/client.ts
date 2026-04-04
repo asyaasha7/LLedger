@@ -1,18 +1,35 @@
 import postgres from "postgres";
 
-type GlobalSql = typeof globalThis & { __leaseLedgerPostgres?: postgres.Sql };
+type GlobalDb = typeof globalThis & {
+  __leaseLedgerPostgres?: postgres.Sql;
+  __leaseLedgerDatabaseUrl?: string;
+};
 
 /**
  * Supabase Postgres connection (direct URI or pooler).
  * Set `DATABASE_URL` in `.env.local` from Supabase → Project Settings → Database.
  * When unset, repositories fall back to in-memory mock data.
+ *
+ * Recreates the client when `DATABASE_URL` changes so dev/HMR picks up `.env.local` edits
+ * (singleton would otherwise keep the first host forever).
  */
 export function getDb(): postgres.Sql | null {
-  const url = process.env.DATABASE_URL;
-  if (!url?.trim()) return null;
+  const url = process.env.DATABASE_URL?.trim() ?? "";
+  if (!url) return null;
 
-  const g = globalThis as GlobalSql;
+  const g = globalThis as GlobalDb;
+  if (g.__leaseLedgerPostgres && g.__leaseLedgerDatabaseUrl !== url) {
+    try {
+      void g.__leaseLedgerPostgres.end();
+    } catch {
+      /* ignore */
+    }
+    g.__leaseLedgerPostgres = undefined;
+    g.__leaseLedgerDatabaseUrl = undefined;
+  }
+
   if (!g.__leaseLedgerPostgres) {
+    g.__leaseLedgerDatabaseUrl = url;
     g.__leaseLedgerPostgres = postgres(url, {
       max: 1,
       idle_timeout: 20,
