@@ -132,3 +132,29 @@ export async function findLeaseIdByIdempotencyKey(
   `;
   return rows[0]?.lease_id;
 }
+
+export async function updateLeaseDepositCents(input: {
+  leaseId: string;
+  landlordUserId: string;
+  depositCents: number;
+}): Promise<
+  { ok: true } | { ok: false; code: "not_found" | "forbidden" }
+> {
+  const db = getDb();
+  if (!db) throw new Error("DATABASE_URL is not configured");
+
+  const rows = await db<{ landlord_user_id: string }[]>`
+    SELECT landlord_user_id FROM lease_cases WHERE lease_id = ${input.leaseId} LIMIT 1
+  `;
+  if (!rows[0]) return { ok: false, code: "not_found" };
+  if (rows[0].landlord_user_id !== input.landlordUserId) {
+    return { ok: false, code: "forbidden" };
+  }
+
+  await db`
+    UPDATE lease_cases
+    SET deposit_cents = ${input.depositCents}, updated_at = now()
+    WHERE lease_id = ${input.leaseId}
+  `;
+  return { ok: true };
+}

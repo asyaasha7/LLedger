@@ -13,7 +13,12 @@ import {
   canProposeDeductionSettlement,
   canRecordRefundExecuted,
 } from "@/lib/settlement-workflow";
-import type { Settlement } from "@/domain";
+import { canLandlordAdjustDepositOrDeduction } from "@/lib/lease-financial-edit";
+import {
+  DepositAdjustForm,
+  DeductionProposalForm,
+} from "@/components/case/landlord-financial-forms";
+import type { Settlement, SettlementStatus } from "@/domain";
 import { Button } from "@/components/ui/button";
 import { SettlementActions } from "@/components/case/settlement-actions";
 import { formatMoney } from "@/lib/format-money";
@@ -43,17 +48,19 @@ export default async function SettlementPage({
       createdAt: new Date().toISOString(),
     };
 
-  const deposit = settlement.depositAmountCents;
-  const deduction = settlement.deductionAmountCents;
+  const overviewHref = routes.case(caseId).overview;
+  const proposals = await listDeductionProposalsForLease(caseId);
+  const activeDeduction = proposals.find((p) => p.status === "ACTIVE");
+
+  /** Lease row is source of truth for deposit; active proposal drives deduction preview. */
+  const deposit = c.depositCents;
+  const deduction =
+    activeDeduction?.amountCents ?? settlement.deductionAmountCents;
   const refund = refundAmountCents(deposit, deduction);
   const settlementComplete =
     settlement.status === "EXECUTED" || c.status === "REFUND_COMPLETE";
   const refundScheduledPendingExecution =
     c.status === "REFUND_SCHEDULED" && !settlementComplete;
-
-  const overviewHref = routes.case(caseId).overview;
-  const proposals = await listDeductionProposalsForLease(caseId);
-  const activeDeduction = proposals.find((p) => p.status === "ACTIVE");
 
   const user =
     isDatabaseConfigured() ? await getSessionUser() : null;
@@ -85,6 +92,13 @@ export default async function SettlementPage({
       hederaScheduleId: existing?.hederaScheduleId ?? c.hederaRefundScheduleId,
     });
 
+  const canEditFinancials =
+    membershipRole === "landlord" &&
+    canLandlordAdjustDepositOrDeduction(
+      c.status,
+      existing?.status as SettlementStatus | undefined,
+    );
+
   return (
     <div className="mx-auto max-w-6xl space-y-16">
       <header className="flex flex-col justify-between gap-8 lg:flex-row lg:items-end">
@@ -107,6 +121,17 @@ export default async function SettlementPage({
           </p>
         </div>
       </header>
+
+      {isDatabaseConfigured() && canEditFinancials ? (
+        <div className="mx-auto grid max-w-6xl gap-4 md:grid-cols-2">
+          <DepositAdjustForm
+            leaseId={caseId}
+            depositCents={c.depositCents}
+            disabled={false}
+          />
+          <DeductionProposalForm leaseId={caseId} disabled={false} />
+        </div>
+      ) : null}
 
       <div className="grid gap-4 lg:grid-cols-12">
         <div className="flex flex-col justify-between border border-outline-variant/15 bg-surface-low p-8 lg:col-span-7 lg:p-12">
