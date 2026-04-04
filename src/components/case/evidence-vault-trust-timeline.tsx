@@ -37,10 +37,14 @@ function submitterName(
   return item.submitterRole === "landlord" ? landlord : tenant;
 }
 
-function isPhotoEvidence(item: EvidenceItem): boolean {
+/** Types for which we request `/file` as an image; on failure we fall back to the editorial still. */
+function evidenceMayShowVaultImage(item: EvidenceItem): boolean {
   const t = item.evidenceType;
   return (
-    t === "MOVE_IN_PHOTO" || t === "MOVE_OUT_PHOTO" || t === "DAMAGE_PHOTO"
+    t === "MOVE_IN_PHOTO" ||
+    t === "MOVE_OUT_PHOTO" ||
+    t === "DAMAGE_PHOTO" ||
+    t === "OTHER"
   );
 }
 
@@ -62,7 +66,7 @@ function EvidenceTimelineStill({
   const placeholder =
     TRUST_TIMELINE_IMAGES[fallbackIndex % TRUST_TIMELINE_IMAGES.length]!;
   const [usePlaceholder, setUsePlaceholder] = useState(false);
-  const showPhoto = isPhotoEvidence(item) && !usePlaceholder;
+  const showPhoto = evidenceMayShowVaultImage(item) && !usePlaceholder;
 
   return (
     <div className="relative h-48 w-full overflow-hidden bg-surface-highest">
@@ -100,7 +104,7 @@ function EvidenceTimelineStillOddMobile({
   const placeholder =
     TRUST_TIMELINE_IMAGES[fallbackIndex % TRUST_TIMELINE_IMAGES.length]!;
   const [usePlaceholder, setUsePlaceholder] = useState(false);
-  const showPhoto = isPhotoEvidence(item) && !usePlaceholder;
+  const showPhoto = evidenceMayShowVaultImage(item) && !usePlaceholder;
 
   return (
     <div className="relative mt-6 h-40 w-full overflow-hidden border border-outline-variant/15 bg-surface-highest md:hidden">
@@ -119,6 +123,47 @@ function EvidenceTimelineStillOddMobile({
           fill
           className="object-cover grayscale opacity-80"
           sizes="100vw"
+        />
+      )}
+    </div>
+  );
+}
+
+/** Disputed rows previously had no thumbnail; show the same vault image as other layouts when applicable. */
+function EvidenceDisputedVaultPreview({
+  caseId,
+  item,
+  fallbackIndex,
+}: {
+  caseId: string;
+  item: EvidenceItem;
+  fallbackIndex: number;
+}) {
+  const placeholder =
+    TRUST_TIMELINE_IMAGES[fallbackIndex % TRUST_TIMELINE_IMAGES.length]!;
+  const [usePlaceholder, setUsePlaceholder] = useState(false);
+  const eligible = evidenceMayShowVaultImage(item);
+  const showPhoto = eligible && !usePlaceholder;
+
+  if (!eligible) return null;
+
+  return (
+    <div className="relative mb-6 h-44 w-full overflow-hidden bg-black/5">
+      {showPhoto ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={evidenceFileUrl(caseId, item.evidenceId)}
+          alt={item.title}
+          className="absolute inset-0 h-full w-full object-cover"
+          onError={() => setUsePlaceholder(true)}
+        />
+      ) : (
+        <Image
+          src={placeholder}
+          alt=""
+          fill
+          className="object-cover grayscale contrast-125"
+          sizes="(min-width: 768px) 40vw, 100vw"
         />
       )}
     </div>
@@ -354,6 +399,11 @@ export function EvidenceVaultTrustTimeline({
                       aria-hidden
                     />
                     <div className="border-l-4 border-accent-pink bg-surface-card p-8">
+                      <EvidenceDisputedVaultPreview
+                        caseId={caseId}
+                        item={item}
+                        fallbackIndex={index}
+                      />
                       <div className="mb-4 flex items-center gap-3">
                         <AlertTriangle
                           className="h-5 w-5 text-accent-pink"
