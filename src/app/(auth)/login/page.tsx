@@ -137,22 +137,34 @@ function LoginContent() {
   }
 
   return (
-    <div className="w-full max-w-md space-y-10">
-      <div>
+    <div className="w-full max-w-lg space-y-10">
+      <header className="space-y-5">
         <Link
           href={routes.dashboard}
-          className="font-headline text-xs font-bold uppercase tracking-widest text-accent-ledger"
+          className="inline-block font-headline text-xs font-bold uppercase tracking-widest text-accent-ledger hover:opacity-90"
         >
-          ← LeaseLedger
+          ← Back to dashboard
         </Link>
-        <h1 className="mt-6 font-headline text-2xl font-black uppercase tracking-tighter text-ink">
-          Sign in
-        </h1>
-        <p className="mt-2 text-sm text-ink-secondary">
-          Landlords use email and password for demos. Invited tenants use a magic
-          link to the email the landlord added.
-        </p>
-      </div>
+        <div>
+          <span className="mb-3 block font-headline text-[10px] uppercase tracking-[0.28em] text-accent-ledger">
+            Security deposit workspace
+          </span>
+          <h1 className="font-headline text-4xl font-black uppercase leading-[0.95] tracking-tighter text-ink sm:text-5xl">
+            LeaseLedger
+            <span className="text-accent-ledger">.</span>
+          </h1>
+          <p className="mt-5 max-w-md text-base leading-relaxed text-ink-secondary">
+            One place for landlords and tenants to upload move-in and move-out
+            evidence, agree on deductions, and close the deposit with a clear
+            trail—not a pile of texts and screenshots.
+          </p>
+          <p className="mt-3 text-sm leading-relaxed text-ink-muted">
+            Files are encrypted in storage; you&apos;re signing in to your cases
+            and settlements. Landlords use email and password; invited tenants
+            use a magic link sent to the address the landlord provided.
+          </p>
+        </div>
+      </header>
 
       {urlError ? (
         <p className="rounded border border-accent-magenta/30 bg-accent-magenta/5 px-4 py-3 text-sm text-accent-magenta">
@@ -316,7 +328,7 @@ export default function LoginPage() {
   return (
     <Suspense
       fallback={
-        <div className="w-full max-w-md animate-pulse text-sm text-ink-muted">
+        <div className="w-full max-w-lg animate-pulse text-sm text-ink-muted">
           Loading…
         </div>
       }
