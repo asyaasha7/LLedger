@@ -12,7 +12,31 @@ import { extractCaseIdFromPath } from "@/lib/parse-case-path";
 import { StatusPill } from "@/components/ui/status-pill";
 import { cn } from "@/lib/cn";
 
-export function TopContextBar() {
+export type TopContextBarUser = {
+  email: string | null;
+  /** Shown in the bar; falls back from profile name or email local-part on the server. */
+  displayName: string;
+};
+
+function initialsForUser(user: TopContextBarUser): string {
+  const name = user.displayName.trim();
+  if (name.length >= 2) {
+    const parts = name.split(/\s+/).filter(Boolean);
+    if (parts.length >= 2) {
+      const a = parts[0]![0];
+      const b = parts[parts.length - 1]![0];
+      if (a && b) return `${a}${b}`.toUpperCase();
+    }
+    return name.slice(0, 2).toUpperCase();
+  }
+  const e = user.email?.trim();
+  if (e && e.length >= 2) {
+    return e.slice(0, 2).toUpperCase();
+  }
+  return "—";
+}
+
+export function TopContextBar({ user }: { user: TopContextBarUser | null }) {
   const pathname = usePathname();
   const caseId = extractCaseIdFromPath(pathname);
   const [caseData, setCaseData] = useState<LeaseCase | null>(null);
@@ -117,8 +141,32 @@ export function TopContextBar() {
         >
           <Settings className="h-5 w-5" strokeWidth={1.5} />
         </Link>
-        <div className="flex h-9 w-9 items-center justify-center border border-outline-variant/30 bg-surface-highest text-[10px] font-bold text-ink">
-          LL
+        <div
+          role="group"
+          className="flex max-w-[14rem] items-center gap-3 border-l border-outline-variant/20 pl-4"
+          title={user?.email ?? user?.displayName ?? undefined}
+          aria-label={
+            user
+              ? `Signed in as ${user.displayName}${user.email ? `, ${user.email}` : ""}`
+              : "Demo mode, not signed in"
+          }
+        >
+          <div className="min-w-0 text-right max-sm:hidden">
+            <p className="truncate font-headline text-[10px] font-bold uppercase tracking-widest text-ink">
+              {user?.displayName ?? "Guest"}
+            </p>
+            {user?.email ? (
+              <p className="truncate font-sans text-[9px] text-ink-muted">
+                {user.email}
+              </p>
+            ) : null}
+          </div>
+          <div
+            className="flex h-9 w-9 shrink-0 items-center justify-center border border-outline-variant/30 bg-surface-highest font-headline text-[10px] font-bold uppercase tracking-tight text-ink"
+            aria-hidden
+          >
+            {user ? initialsForUser(user) : "LL"}
+          </div>
         </div>
       </div>
     </header>

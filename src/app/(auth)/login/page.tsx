@@ -1,7 +1,6 @@
 "use client";
 
 import { Suspense, useEffect, useState } from "react";
-import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { routes } from "@/config/routes";
 import { createClient } from "@/utils/supabase/client";
@@ -137,14 +136,8 @@ function LoginContent() {
   }
 
   return (
-    <div className="w-full max-w-lg space-y-10">
-      <header className="space-y-5">
-        <Link
-          href={routes.dashboard}
-          className="inline-block font-headline text-xs font-bold uppercase tracking-widest text-accent-ledger hover:opacity-90"
-        >
-          ← Back to dashboard
-        </Link>
+    <div className="w-full max-w-xl space-y-10">
+      <header className="space-y-2">
         <div>
           <span className="mb-3 block font-headline text-[10px] uppercase tracking-[0.28em] text-accent-ledger">
             Security deposit workspace
